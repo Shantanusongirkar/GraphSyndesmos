@@ -141,7 +141,7 @@ def ask(question):
 
 
 if __name__ == "__main__":
-    print(f"Repo graph agent ({MODEL}). Empty line to quit.")
+    print(f"GraphSyndesmos agent ({MODEL}). Empty line to quit.")
     while True:
         q = input("\nAsk: ").strip()
         if not q or q.lower() in ("quit", "exit"):

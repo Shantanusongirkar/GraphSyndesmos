@@ -7,7 +7,7 @@ from falkordb import FalkorDB
 
 load_dotenv()
 
-app = FastAPI(title="GraphHacks API")
+app = FastAPI(title="GraphSyndesmos API")
 
 db = FalkorDB(
     host=os.getenv("FALKORDB_HOST", "localhost"),

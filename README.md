@@ -1,9 +1,7 @@
-# GraphHacks: a Company Brain for a GitHub repo
+# GraphSyndesmos
 
-An agent that answers "who knows this part of the code?" by following connections in a
-FalkorDB graph, and shows the exact Cypher query behind every answer.
+Ask who knows what in a GitHub repo, and see the graph path behind every answer.
 
-Built for **Graph Hacks: Context for AI Agents** (WeMakeDevs x FalkorDB), **Track 3: Company Brain**.
 
 ![agent demo](docs/agent-demo.png)
 
