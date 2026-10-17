@@ -87,7 +87,6 @@ ORDER BY prs DESC LIMIT 5
 Answer: ...
 ```
 
-(Replace this with a real run from your terminal.)
 
 ## Limitations and next steps
 
@@ -95,7 +94,3 @@ Answer: ...
 - Small local models sometimes choose the wrong tool; a larger model helps.
 - Next: store questions and answers in the graph so the agent remembers across sessions (Track 2), and add review and issue-ownership tools.
 
-## Team
-
-- Your Name
-- Teammate Name
