@@ -2,8 +2,11 @@
 
 Ask who knows what in a GitHub repo, and see the graph path behind every answer.
 
+Built for Graph Hacks (WeMakeDevs x FalkorDB), Track 3: Company Brain.
+
 
 ![agent demo](docs/agent-demo.png)
+![graph screenshot](docs/graph.png)
 
 ## The problem
 
@@ -84,13 +87,18 @@ WHERE toLower(f.path) CONTAINS toLower($module)
 RETURN p.login AS person, count(DISTINCT pr) AS prs
 ORDER BY prs DESC LIMIT 5
 
-Answer: ... The users who know the most about graph-related topics are AviAvni, swilly22, GomezGab, aniruddhaadak80, and alblancc.
+Answer: AviAvni, swilly22, GomezGab, aniruddhaadak80, and alblancc know the graph-related files best.
 ```
 
 
 ## Limitations and next steps
 
-- Uses the first 100 PRs' file lists to keep API usage small.
+- Uses the first 100 PRs' file lists to keep API usage small, so file-level rankings are a sample, not the full history.
 - Small local models sometimes choose the wrong tool; a larger model helps.
+- Tests (`pytest`) need FalkorDB running with the `repo` graph loaded via `load.py`.
 - Next: store questions and answers in the graph so the agent remembers across sessions (Track 2), and add review and issue-ownership tools.
+
+## Demo video
+
+VIDEO_LINK_HERE
 

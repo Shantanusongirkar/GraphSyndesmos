@@ -49,15 +49,15 @@ def module_insights(name: str = Query(min_length=1, max_length=200)):
 
         return {
             "module": name,
-          "results": [
-    {
-        "file": row[0],
-        "pull_requests": row[1],
-        "contributors": row[2],
-        "pull_request_details": row[3],
-    }
-    for row in rows
-],
+            "results": [
+                {
+                    "file": row[0],
+                    "pull_requests": row[1],
+                    "contributors": row[2],
+                    "pull_request_details": row[3],
+                }
+                for row in rows
+            ],
         }
     except Exception as exc:
         raise HTTPException(status_code=500, detail="Could not query repository graph") from exc
