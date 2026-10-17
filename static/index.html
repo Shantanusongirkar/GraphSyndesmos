@@ -1,0 +1,547 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>GraphSyndesmos</title>
+<style>
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  html { background: #0a0b10; color: #e5e7eb; font-family: system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif; font-size: 13px; line-height: 1.45; }
+  body { height: 100vh; overflow: hidden; display: flex; flex-direction: column; }
+  .mono { font-family: ui-monospace, SFMono-Regular, "SF Mono", Menlo, Consolas, "Liberation Mono", monospace; font-size: 12px; }
+
+  /* top bar */
+  .topbar { height: 40px; border-bottom: 1px solid #2a2d38; display: flex; align-items: center; gap: 14px; padding: 0 16px; flex-shrink: 0; }
+  .wordmark { font-family: ui-monospace, monospace; font-size: 11.5px; font-weight: 700; letter-spacing: -0.1px; color: #3b6cf4; }
+  .sep { color: #555; margin: 0 6px; }
+  .stat { color: #cbd5e1; }
+  .stat .mono { color: #e5e7eb; }
+  .status-dot { width: 8px; height: 8px; border-radius: 50%; background: #22c55e; }
+  .status-dot.off { background: #6b7280; }
+
+  /* split columns */
+  .split { display: flex; flex: 1; overflow: hidden; }
+  .left { width: 40%; border-right: 1px solid #2a2d38; overflow-y: auto; padding: 16px; display: flex; flex-direction: column; gap: 14px; }
+  .right { width: 60%; display: flex; flex-direction: column; overflow: hidden; }
+
+  /* panels */
+  .panel { border: 1px solid #2a2d38; border-radius: 6px; padding: 12px; background: #0f1016; display: flex; flex-direction: column; gap: 8px; }
+  .panel-title { font-size: 10.5px; text-transform: uppercase; letter-spacing: 0.4px; color: #94a3b8; display: flex; align-items: center; gap: 6px; }
+
+  /* question input */
+  .input-wrap { position: relative; }
+  input#question { width: 100%; background: #0a0b10; border: 1px solid #2a2d38; border-radius: 6px; padding: 8px 10px; color: #e5e7eb; font-family: ui-monospace, monospace; font-size: 13px; }
+  input#question:focus { border-color: #3b6cf4; outline: none; }
+  input#question:disabled { opacity: 0.55; cursor: not-allowed; background: #0d0e14; }
+  input#question::placeholder { color: #6b7280; }
+
+  .examples { font-size: 11.5px; display: flex; flex-direction: column; gap: 4px; }
+  .examples a { color: #3b6cf4; text-decoration: none; cursor: pointer; }
+  .examples a:hover { text-decoration: underline; }
+
+  /* answer block */
+  .answer { font-size: 13px; color: #e5e7eb; white-space: pre-wrap; min-height: 1.45em; }
+  .answer.blank { color: #6b7280; font-style: italic; }
+
+  /* sources + history rows */
+  .list-title { font-size: 10.5px; text-transform: uppercase; letter-spacing: 0.4px; color: #94a3b8; margin-bottom: 6px; }
+  .sources-list, .history-list { display: flex; flex-direction: column; gap: 5px; }
+  .source-row, .history-item { font-size: 12px; padding: 5px 8px; border-radius: 4px; border: 1px solid transparent; display: flex; align-items: baseline; gap: 8px; }
+  .source-row { color: #cbd5e1; cursor: default; }
+  .source-row:hover { background: #16181e; border-color: #2a2d38; }
+  .source-row a { color: #3b6cf4; text-decoration: none; }
+  .source-row a:hover { text-decoration: underline; }
+  .source-num { color: #94a3b8; white-space: nowrap; }
+  .source-name { flex: 1; min-width: 0; }
+  .source-name .mono { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+  .history-item { color: #cbd5e1; cursor: pointer; }
+  .history-item:hover { background: #16181e; color: #e5e7eb; }
+
+  /* right column - graph */
+  .graph-wrap { flex: 1; position: relative; border-bottom: 1px solid #2a2d38; overflow: hidden; }
+  #graph { width: 100%; height: 100%; background: #0a0b10; display: block; }
+  .graph-hint { position: absolute; top: 50%; left: 50%; transform: translate(-50%, -50%); color: #6b7280; font-family: ui-monospace, monospace; font-size: 13px; pointer-events: none; user-select: none; }
+  .tooltip { position: absolute; pointer-events: none; background: #16181e; border: 1px solid #2a2d38; border-radius: 4px; padding: 4px 8px; font-size: 11px; color: #e5e7eb; font-family: ui-monospace, monospace; opacity: 0; transition: opacity 0.15s; z-index: 10; }
+  .tooltip.visible { opacity: 1; }
+  .legend { display: flex; gap: 14px; font-size: 10.5px; color: #94a3b8; margin: 8px 12px 0 12px; }
+  .legend-item { display: flex; align-items: center; gap: 6px; }
+  .legend-dot { width: 8px; height: 8px; border-radius: 50%; }
+
+  /* right column - cypher */
+  .cypher-wrap { height: 140px; border-top: 1px solid #2a2d38; padding: 10px 12px; display: flex; flex-direction: column; gap: 6px; overflow-y: auto; background: #0d0e14; }
+  .cypher-meta { font-size: 11px; color: #94a3b8; display: flex; align-items: center; gap: 12px; flex-shrink: 0; }
+  .step-tabs { display: flex; gap: 6px; flex-shrink: 0; }
+  .step-tab { font-size: 10.5px; padding: 2px 8px; border: 1px solid #2a2d38; border-radius: 4px; background: #0a0b10; color: #94a3b8; cursor: pointer; font-family: ui-monospace, monospace; }
+  .step-tab:hover { border-color: #3b6cf4; color: #3b6cf4; }
+  .step-tab.active { background: #3b6cf4; color: #fff; border-color: #3b6cf4; }
+  .cypher-pre { font-family: ui-monospace, monospace; font-size: 11px; color: #e5e7eb; white-space: pre-wrap; overflow: auto; flex: 1; }
+  .copy-btn { font-family: ui-monospace, monospace; font-size: 10.5px; padding: 2px 8px; border: 1px solid #2a2d38; border-radius: 4px; background: #0f1016; color: #94a3b8; cursor: pointer; flex-shrink: 0; white-space: nowrap; }
+  .copy-btn:hover { border-color: #3b6cf4; color: #3b6cf4; }
+
+  /* loading / status */
+  .status-line { font-family: ui-monospace, monospace; font-size: 12px; color: #94a3b8; margin: 3px 0; }
+
+  /* buttons */
+  .btn { font-family: ui-monospace, monospace; font-size: 12px; padding: 6px 12px; border: 1px solid #3b6cf4; border-radius: 6px; background: transparent; color: #3b6cf4; cursor: pointer; }
+  .btn:hover { background: #3b6cf4; color: #fff; }
+  .btn:disabled { border-color: #444; color: #666; cursor: not-allowed; }
+
+  /* focus */
+  *:focus-visible { outline: 2px solid #3b6cf4; outline-offset: 2px; }
+
+  /* responsive */
+  @media (max-width: 899px) {
+    .split { flex-direction: column; }
+    .left, .right { width: 100%; height: 50%; min-height: 300px; }
+    .left { border-right: none; border-bottom: 1px solid #2a2d38; }
+    .right { border-top: none; border-top: 1px solid #2a2d38; }
+  }
+  @media (prefers-reduced-motion: reduce) {
+    * { transition: none !important; animation: none !important; }
+  }
+</style>
+</head>
+<body>
+  <div class="topbar">
+    <div class="wordmark">GraphSyndesmos</div>
+    <div class="sep">|</div>
+    <div class="stat">repo <span class="mono" id="stat-repo">-</span></div>
+    <div class="sep">|</div>
+    <div class="stat">nodes <span class="mono" id="stat-nodes">-</span></div>
+    <div class="sep">|</div>
+    <div class="stat">edges <span class="mono" id="stat-edges">-</span></div>
+    <div class="sep">|</div>
+    <div class="stat">status <span class="status-dot off" id="stat-dot"></span></div>
+  </div>
+
+  <div class="split">
+    <!-- LEFT COLUMN -->
+    <div class="left">
+      <div class="input-wrap">
+        <input type="text" id="question" placeholder="e.g. who knows the most about graph?" autocomplete="off" />
+      </div>
+      <div class="examples">
+        <div class="panel-title" style="margin-bottom:6px;">examples</div>
+        <a href="#" data-q="who knows the most about anything related to graph?">who knows the most about anything related to graph?</a>
+        <a href="#" data-q="which files change most often?">which files change most often?</a>
+        <a href="#" data-q="who authored the most pull requests?">who authored the most pull requests?</a>
+      </div>
+      <div class="panel">
+        <div class="panel-title">answer</div>
+        <div id="answer" class="answer blank">Ask a question to see the path.</div>
+      </div>
+      <div class="panel">
+        <div class="panel-title">sources</div>
+        <div id="sources" class="sources-list">
+          <div class="status-line">-</div>
+        </div>
+      </div>
+      <div class="panel">
+        <div class="panel-title">history</div>
+        <div id="history" class="history-list">
+          <div class="status-line">no history yet</div>
+        </div>
+      </div>
+    </div>
+
+    <!-- RIGHT COLUMN -->
+    <div class="right">
+      <div class="graph-wrap">
+        <div id="graph"></div>
+        <div class="graph-hint" id="graphHint">Ask a question to see the path</div>
+        <div class="tooltip" id="tooltip"></div>
+        <div class="legend" id="legend"></div>
+      </div>
+      <div class="cypher-wrap">
+        <div class="cypher-meta">
+          <span id="cypherTool" class="mono">-</span>
+          <div class="step-tabs" id="stepTabs"></div>
+        </div>
+        <div style="display:flex; align-items:center; gap:8px;">
+          <pre id="cypher" class="cypher-pre">-</pre>
+          <button class="copy-btn" id="copyBtn">copy</button>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <script src="https://unpkg.com/force-graph@1.43.0/dist/force-graph.min.js"></script>
+  <script>
+    (function () {
+      const ACCENT = '#3b6cf4';
+      const NODE_COLORS = { Person: '#5eead4', PR: '#3b6cf4', File: '#e052b6', Issue: '#c8913f' };
+      const REPO = 'FalkorDB/FalkorDB';
+      const REDUCED_MOTION = window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+      const ANIM_STEP_MS = 70;
+
+      // DOM refs
+      const els = {
+        question: document.getElementById('question'),
+        answer: document.getElementById('answer'),
+        sources: document.getElementById('sources'),
+        history: document.getElementById('history'),
+        graphHint: document.getElementById('graphHint'),
+        tooltip: document.getElementById('tooltip'),
+        legend: document.getElementById('legend'),
+        statRepo: document.getElementById('stat-repo'),
+        statNodes: document.getElementById('stat-nodes'),
+        statEdges: document.getElementById('stat-edges'),
+        statDot: document.getElementById('stat-dot'),
+        cypherTool: document.getElementById('cypherTool'),
+        stepTabs: document.getElementById('stepTabs'),
+        cypherPre: document.getElementById('cypher'),
+        copyBtn: document.getElementById('copyBtn'),
+        graph: document.getElementById('graph'),
+      };
+
+      // state
+      let fg = null;
+      let graphData = { nodes: [], edges: [] };
+      let allSteps = [];
+      let activeStep = null; // index or null
+      let history = [];
+      let animating = false;
+
+      // --- stats ---
+      async function loadStats() {
+        try {
+          const res = await fetch('/stats');
+          const data = await res.json();
+          els.statRepo.textContent = data.repo;
+          els.statNodes.textContent = data.nodes;
+          els.statEdges.textContent = data.edges;
+          els.statDot.className = 'status-dot';
+        } catch (e) {
+          els.statDot.className = 'status-dot off';
+        }
+      }
+
+      // --- force-graph ---
+      function initGraph() {
+        fg = ForceGraph()(els.graph)
+          .width(els.graph.clientWidth)
+          .height(els.graph.clientHeight)
+          .nodeId('id')
+          .nodeVal('name')
+          .nodeColor(d => NODE_COLORS[d.label] || '#94a3b8')
+          .linkColor(d => NODE_COLORS[d.label] || '#94a3b8')
+          .linkWidth(d => d._highlighted ? 2.2 : 1)
+          .linkSource('source')
+          .linkTarget('target')
+          .nodeCanvasObject(drawNode)
+          .linkCanvasObject(drawEdge)
+          .onNodeHover(onNodeHover)
+          .onNodeClick(onNodeClick)
+          .onEngineStop(onEngineStop)
+          .graphData({ nodes: graphData.nodes, links: graphData.edges });
+        window.addEventListener('resize', onResize);
+      }
+
+      function onResize() {
+        if (!fg) return;
+        fg.width(els.graph.clientWidth).height(els.graph.clientHeight);
+      }
+
+      function drawNode(node, ctx, globalScale) {
+        const r = 4 * globalScale;
+        ctx.beginPath();
+        ctx.arc(node.x, node.y, r, 0, 2 * Math.PI);
+        ctx.fillStyle = node._highlighted ? ACCENT : NODE_COLORS[node.label] || '#94a3b8';
+        ctx.fill();
+        ctx.strokeStyle = '#0a0b10';
+        ctx.lineWidth = 1 * globalScale;
+        ctx.stroke();
+        if (node._highlighted && node.name) {
+          ctx.fillStyle = '#ffffff';
+          ctx.font = (10 * globalScale) + 'px ui-monospace, monospace';
+          ctx.fillText(node.name, node.x + r + 4, node.y + 4);
+        }
+      }
+
+      function drawEdge(edge, ctx, globalScale) {
+        ctx.beginPath();
+        ctx.moveTo(edge.source.x, edge.source.y);
+        ctx.lineTo(edge.target.x, edge.target.y);
+        ctx.strokeStyle = edge._highlighted ? ACCENT : '#2a2d38';
+        ctx.lineWidth = edge._highlighted ? 2.2 * globalScale : 1 * globalScale;
+        ctx.stroke();
+      }
+
+      function onNodeHover(node, event) {
+        const tip = els.tooltip;
+        if (!node) { tip.classList.remove('visible'); return; }
+        const label = node.label + (node.number !== undefined ? ' #' + node.number : '');
+        tip.textContent = label + '  ' + node.name;
+        const x = (event && event.clientX !== undefined) ? event.clientX : 0;
+        const y = (event && event.clientY !== undefined) ? event.clientY : 0;
+        tip.style.left = x + 12 + 'px';
+        tip.style.top = y + 12 + 'px';
+        tip.classList.add('visible');
+      }
+
+      function onNodeClick(node) {
+        if (node.url) window.open(node.url, '_blank', 'noopener noreferrer');
+      }
+
+      function onEngineStop() {
+        // allow settling
+      }
+
+      function renderGraph() {
+        if (!fg) return;
+        // recompute highlight flags based on activeStep
+        const highlightNodeIds = new Set();
+        const highlightEdgeKeys = new Set();
+        const stepsToShow = activeStep === null ? allSteps : [allSteps[activeStep]];
+        stepsToShow.forEach(step => {
+          step.graph.nodes.forEach(n => highlightNodeIds.add(n.id));
+          step.graph.edges.forEach(e => highlightEdgeKeys.add(e.source + '->' + e.target + ':' + e.type));
+        });
+        graphData.nodes.forEach(n => { n._highlighted = highlightNodeIds.has(n.id); });
+        graphData.edges.forEach(e => { e._highlighted = highlightEdgeKeys.has(e.source + '->' + e.target + ':' + e.type); });
+        fg.graphData({ nodes: graphData.nodes, links: graphData.edges });
+        els.graphHint.style.display = graphData.nodes.length ? 'none' : 'block';
+      }
+
+      function setGraphData(nodes, edges) {
+        graphData = { nodes: nodes.map(n => Object.assign({}, n, { _highlighted: false })), edges: edges.map(e => Object.assign({}, e, { _highlighted: false })) };
+        if (fg) fg.graphData({ nodes: graphData.nodes, links: graphData.edges });
+        els.graphHint.style.display = graphData.nodes.length ? 'none' : 'block';
+      }
+
+      // --- animation ---
+      function animatePath(stepIndex) {
+        if (REDUCED_MOTION) {
+          activeStep = stepIndex;
+          renderGraph();
+          return;
+        }
+        const step = allSteps[stepIndex];
+        const nodeIds = new Set(step.graph.nodes.map(n => n.id));
+        const edgeKeys = new Set(step.graph.edges.map(e => e.source + '->' + e.target + ':' + e.type));
+
+        // start from dim
+        graphData.nodes.forEach(n => { n._highlighted = false; });
+        graphData.edges.forEach(e => { e._highlighted = false; });
+        activeStep = stepIndex;
+        renderGraph();
+
+        const pathNodes = graphData.nodes.filter(n => nodeIds.has(n.id));
+        const pathEdges = graphData.edges.filter(e => edgeKeys.has(e.source + '->' + e.target + ':' + e.type));
+        const items = [];
+        const maxLen = Math.max(pathNodes.length, pathEdges.length);
+        for (let i = 0; i < maxLen; i++) {
+          if (i < pathNodes.length) items.push({ kind: 'node', item: pathNodes[i] });
+          if (i < pathEdges.length) items.push({ kind: 'edge', item: pathEdges[i] });
+        }
+
+        animating = true;
+        let i = 0;
+        function tick() {
+          if (i >= items.length) { animating = false; renderGraph(); return; }
+          const it = items[i];
+          if (it.kind === 'node') it.item._highlighted = true;
+          else it.item._highlighted = true;
+          renderGraph();
+          i++;
+          setTimeout(tick, ANIM_STEP_MS);
+        }
+        tick();
+      }
+
+      // --- backend ---
+      async function ask(question) {
+        setLoading(true);
+        clearAnswer();
+        try {
+          const res = await fetch('/ask', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ question }),
+          });
+          if (!res.ok) throw new Error('request failed');
+          const data = await res.json();
+          data._question = question;
+          displayAnswer(data);
+        } catch (err) {
+          els.answer.textContent = 'Error: ' + err.message;
+          els.answer.className = 'answer';
+        } finally {
+          setLoading(false);
+        }
+      }
+
+      function setLoading(loading) {
+        els.question.disabled = loading;
+        if (loading) {
+          els.answer.textContent = '';
+          els.answer.className = 'answer';
+          appendStatus('choosing tool\u2026');
+        }
+      }
+
+      function appendStatus(msg) {
+        const line = document.createElement('div');
+        line.className = 'status-line';
+        line.textContent = msg;
+        els.answer.appendChild(line);
+      }
+
+      function clearAnswer() {
+        els.answer.innerHTML = '';
+        els.sources.innerHTML = '';
+        els.cypherPre.textContent = '-';
+        els.cypherTool.textContent = '-';
+        els.stepTabs.innerHTML = '';
+        allSteps = [];
+        activeStep = null;
+        setGraphData([], []);
+        addHistoryItem('');
+      }
+
+      function addHistoryItem(q) {
+        if (!q) return;
+        history = [q, ...history.slice(0, 9)];
+        renderHistory();
+      }
+
+      function renderHistory() {
+        els.history.innerHTML = '';
+        if (!history.length) {
+          els.history.innerHTML = '<div class="status-line">no history yet</div>';
+          return;
+        }
+        history.forEach(q => {
+          const div = document.createElement('div');
+          div.className = 'history-item';
+          div.textContent = q;
+          div.tabIndex = 0;
+          div.addEventListener('click', () => { els.question.value = q; ask(q); });
+          div.addEventListener('keydown', e => { if (e.key === 'Enter') ask(q); });
+          els.history.appendChild(div);
+        });
+      }
+
+      function escapeHtml(str) {
+        const div = document.createElement('div');
+        div.textContent = str;
+        return div.innerHTML;
+      }
+
+      function displayAnswer(data) {
+        // answer
+        els.answer.textContent = data.answer || '(no answer)';
+        els.answer.className = 'answer';
+
+        // steps + graph
+        allSteps = data.steps || [];
+        const allNodes = [], allEdges = [];
+        allSteps.forEach(step => {
+          step.graph.nodes.forEach(n => allNodes.push(n));
+          step.graph.edges.forEach(e => allEdges.push(e));
+        });
+        // dedupe nodes by id
+        const nodeMap = {};
+        allNodes.forEach(n => { if (!nodeMap[n.id]) nodeMap[n.id] = n; });
+        const dedupedNodes = Object.values(nodeMap);
+        setGraphData(dedupedNodes, allEdges);
+
+        // sources
+        els.sources.innerHTML = '';
+        const sources = data.sources || [];
+        if (!sources.length) {
+          els.sources.innerHTML = '<div class="status-line">-</div>';
+        } else {
+          sources.forEach(s => {
+            if (!s.url || !s.url.startsWith('https://github.com/')) return;
+            const row = document.createElement('div');
+            row.className = 'source-row';
+            const num = document.createElement('span');
+            num.className = 'source-num mono';
+            num.textContent = s.label;
+            const name = document.createElement('span');
+            name.className = 'source-name';
+            const m = document.createElement('span');
+            m.className = 'mono';
+            m.textContent = escapeHtml(s.label);
+            const a = document.createElement('a');
+            a.href = s.url;
+            a.target = '_blank';
+            a.rel = 'noopener noreferrer';
+            a.textContent = s.label;
+            name.appendChild(a);
+            row.appendChild(num);
+            row.appendChild(name);
+            els.sources.appendChild(row);
+          });
+        }
+
+        // cypher + tabs
+        renderStepTabs();
+        if (allSteps.length) {
+          showStep(0);
+          animatePath(0);
+        }
+
+        addHistoryItem(typeof data._question === 'string' ? data._question : '');
+      }
+
+      function renderStepTabs() {
+        els.stepTabs.innerHTML = '';
+        if (allSteps.length <= 1) return;
+        allSteps.forEach((_, idx) => {
+          const b = document.createElement('button');
+          b.className = 'step-tab' + (activeStep === idx ? ' active' : '');
+          b.textContent = 'step ' + (idx + 1);
+          b.addEventListener('click', () => showStep(idx));
+          els.stepTabs.appendChild(b);
+        });
+      }
+
+      function showStep(idx) {
+        activeStep = idx;
+        renderStepTabs();
+        const step = allSteps[idx];
+        if (step) {
+          els.cypherTool.textContent = step.tool + ' ' + JSON.stringify(step.args || {});
+          els.cypherPre.textContent = step.cypher || '-';
+        }
+        renderGraph();
+      }
+
+      function copyCypher() {
+        const text = els.cypherPre.textContent;
+        if (!text || text === '-') return;
+        navigator.clipboard.writeText(text).then(() => {
+          const prev = els.copyBtn.textContent;
+          els.copyBtn.textContent = 'copied';
+          setTimeout(() => { els.copyBtn.textContent = prev; }, 1200);
+        });
+      }
+
+      // --- wiring ---
+      function onSubmit() {
+        const q = els.question.value.trim();
+        if (!q || animating) return;
+        ask(q);
+      }
+
+      els.question.addEventListener('keydown', e => { if (e.key === 'Enter') onSubmit(); });
+      els.copyBtn.addEventListener('click', copyCypher);
+
+      document.querySelectorAll('.examples a').forEach(a => {
+        a.addEventListener('click', e => {
+          e.preventDefault();
+          els.question.value = a.dataset.q;
+          ask(a.dataset.q);
+        });
+      });
+
+      // init
+      loadStats();
+      initGraph();
+      setInterval(loadStats, 30000);
+    })();
+  </script>
+</body>
+</html>

@@ -19,6 +19,57 @@ graph = FalkorDB(
 ).select_graph("repo")
 
 
+REPO = "FalkorDB/FalkorDB"
+
+
+def _node_obj(n):
+    """Convert a falkordb Node into a plain graph node dict."""
+    props = n.properties or {}
+    labels = n.labels or []
+    label = labels[0] if labels else "Node"
+    name = props.get("login") or props.get("path") or props.get("title") or str(props)
+    node = {
+        "id": str(n.id),
+        "label": label,
+        "name": name,
+    }
+    if props.get("number") is not None:
+        node["number"] = int(props["number"])
+    if label == "PR":
+        node["url"] = f"https://github.com/{REPO}/pull/{node.get('number')}"
+    elif label == "Issue":
+        node["url"] = f"https://github.com/{REPO}/issues/{node.get('number')}"
+    return node
+
+
+def _edge_obj(e):
+    """Convert a falkordb Edge into a plain graph edge dict."""
+    return {
+        "source": str(e.src_node),
+        "target": str(e.dest_node),
+        "type": e.relation,
+    }
+
+
+def graph_from_rows(rows):
+    """Build {"nodes": [...], "edges": [...]} from falkordb result rows."""
+    nodes = {}
+    edges = []
+    seen_edges = set()
+    for row in rows:
+        for item in row:
+            if hasattr(item, "labels") and not hasattr(item, "relation"):
+                nid = str(item.id)
+                if nid not in nodes:
+                    nodes[nid] = _node_obj(item)
+            elif hasattr(item, "relation"):
+                key = (str(item.src_node), str(item.dest_node), item.relation)
+                if key not in seen_edges:
+                    seen_edges.add(key)
+                    edges.append(_edge_obj(item))
+    return {"nodes": list(nodes.values()), "edges": edges}
+
+
 def run(cypher, params=None):
     rows = graph.ro_query(cypher, params or {}).result_set
     return {"cypher": cypher.strip(), "params": params or {}, "rows": rows}
@@ -30,11 +81,20 @@ def top_contributors(limit: int = 5):
     Args:
         limit: how many people to return
     """
-    return run(
+    result = run(
         "MATCH (p:Person)-[:AUTHORED]->(r:PR) "
         "RETURN p.login AS person, count(r) AS prs ORDER BY prs DESC LIMIT $n",
         {"n": int(limit)},
     )
+    top_logins = [row[0] for row in result["rows"]]
+    gres = graph.ro_query(
+        "MATCH (p:Person)-[a:AUTHORED]->(r:PR) "
+        "WHERE p.login IN $logins "
+        "RETURN p, a, r",
+        {"logins": top_logins},
+    )
+    result["graph"] = graph_from_rows(gres.result_set)
+    return result
 
 
 def hot_files(limit: int = 10):
@@ -43,11 +103,20 @@ def hot_files(limit: int = 10):
     Args:
         limit: how many files to return
     """
-    return run(
+    result = run(
         "MATCH (:PR)-[:TOUCHES]->(f:File) "
         "RETURN f.path AS file, count(*) AS changes ORDER BY changes DESC LIMIT $n",
         {"n": int(limit)},
     )
+    top_paths = [row[0] for row in result["rows"]]
+    gres = graph.ro_query(
+        "MATCH (r:PR)-[t:TOUCHES]->(f:File) "
+        "WHERE f.path IN $paths "
+        "RETURN r, t, f",
+        {"paths": top_paths},
+    )
+    result["graph"] = graph_from_rows(gres.result_set)
+    return result
 
 
 def module_insights(name: str):
@@ -56,7 +125,7 @@ def module_insights(name: str):
     Args:
         name: part of a file path, for example 'graph' or 'src/index'
     """
-    return run(
+    result = run(
         """
         MATCH (p:Person)-[:AUTHORED]->(pr:PR)-[:TOUCHES]->(f:File)
         WHERE toLower(f.path) CONTAINS toLower($module)
@@ -68,6 +137,16 @@ def module_insights(name: str):
         """,
         {"module": name},
     )
+    gres = graph.ro_query(
+        """
+        MATCH (p:Person)-[a:AUTHORED]->(pr:PR)-[t:TOUCHES]->(f:File)
+        WHERE toLower(f.path) CONTAINS toLower($module)
+        RETURN p, a, pr, t, f
+        """,
+        {"module": name},
+    )
+    result["graph"] = graph_from_rows(gres.result_set)
+    return result
 
 
 def who_knows_module(name: str):
@@ -76,7 +155,7 @@ def who_knows_module(name: str):
     Args:
         name: part of a file path, for example 'graph' or 'src/index'
     """
-    return run(
+    result = run(
         """
         MATCH (p:Person)-[:AUTHORED]->(pr:PR)-[:TOUCHES]->(f:File)
         WHERE toLower(f.path) CONTAINS toLower($module)
@@ -85,6 +164,16 @@ def who_knows_module(name: str):
         """,
         {"module": name},
     )
+    gres = graph.ro_query(
+        """
+        MATCH (p:Person)-[a:AUTHORED]->(pr:PR)-[t:TOUCHES]->(f:File)
+        WHERE toLower(f.path) CONTAINS toLower($module)
+        RETURN p, a, pr, t, f
+        """,
+        {"module": name},
+    )
+    result["graph"] = graph_from_rows(gres.result_set)
+    return result
 
 
 def prs_by_person(login: str):
@@ -93,12 +182,19 @@ def prs_by_person(login: str):
     Args:
         login: the person's GitHub login
     """
-    return run(
+    result = run(
         "MATCH (:Person {login:$l})-[:AUTHORED]->(r:PR) "
         "RETURN r.number AS number, r.title AS title, r.state AS state "
         "ORDER BY r.number DESC LIMIT 10",
         {"l": login},
     )
+    gres = graph.ro_query(
+        "MATCH (p:Person {login:$l})-[a:AUTHORED]->(r:PR) "
+        "RETURN p, a, r",
+        {"l": login},
+    )
+    result["graph"] = graph_from_rows(gres.result_set)
+    return result
 
 
 TOOLS = [top_contributors, hot_files, module_insights, who_knows_module, prs_by_person]
