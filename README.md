@@ -84,7 +84,7 @@ WHERE toLower(f.path) CONTAINS toLower($module)
 RETURN p.login AS person, count(DISTINCT pr) AS prs
 ORDER BY prs DESC LIMIT 5
 
-Answer: ...
+Answer: ... The users who know the most about graph-related topics are AviAvni, swilly22, GomezGab, aniruddhaadak80, and alblancc.
 ```
 
 
